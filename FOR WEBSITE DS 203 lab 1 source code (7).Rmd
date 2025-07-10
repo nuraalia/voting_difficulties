@@ -1,0 +1,167 @@
+---
+title: "Assessing Partisan Differences in Perceived Voting Difficulty in the 2022 US Midterm Elections"
+subtitle: "Datasci 203: Lab 1 Summer 2024"
+author: "Nura Hossainzadeh, Ayushi Goel, Ross Vrbanac, Richard Lumpi" 
+output:
+  bookdown::pdf_document2:
+    toc: true
+    number_sections: true
+---
+
+\newpage
+\setcounter{page}{1}
+
+```{r, include=FALSE}
+library(dplyr) 
+library(tidyverse)
+library(knitr)
+library(moments)
+```
+
+```{r, include=FALSE}
+# Load data
+anes_data <- read.csv("anes_pilot_2022_csv_20221214.csv")
+```
+
+# Introduction
+
+Americans often find voting a difficult process, from navigating onerous voter registration procedures to standing in long lines at voting centers \footnote{See, for example, Geys, Benny. "Explaining voter turnout: A review of aggregate-level research." Electoral studies 25, no. 4 (2006): 637-663.}. In a democracy, where voting is fundamental and crucial to the political health of the nation, the hope would be that citizens do not feel that this act is difficult. A democracy must be equally inclusive of all political voices, and if certain citizens feel that it is too hard to express their positions, democracy does not function as it should, especially if citizens who perceive voting to be too difficult tend to share socioeconomic backgrounds, ideological leanings, or other characteristics. 
+
+The difficulties Americans experience in voting also undoubtedly contributes to a longstanding voter turnout problem. In the 2020 presidential election, turnout was at 66% of eligible voters (the highest level since 1900), but the US still ranked just 31 in a comparison with voter turnout rates in the national elections of 49 other countries \footnote{Pew Research Center, https://www.pewresearch.org/short-reads/2022/11/01/turnout-in-u-s-has-soared-in-recent-elections-but-by-some-measures-still-trails-that-of-many-other-countries/}. Midterm elections have notoriously even lower turnout rates in the US; in 2022, only 46% of eligible voters turned out \footnote{Pew Research Center, https://www.pewresearch.org/politics/2023/07/12/voter-turnout-2018-2022/}. 
+
+Low voter turnout not only undermines a fundamental democratic institution but also reflects (and perhaps, in the long run, reinforces) racial and socioeconomic gaps between voters and non-voters. It is a widely known fact that Black, Hispanic, and Asian voting age-eligible citizens participate less frequently than their White counterparts \footnote{Ibid.}. 
+
+In this study, we focus on one potential reason for low voter turnout in the US: a citizen’s perceived difficulty of the act of voting. More specifically, we are interested in disparities between citizens in their perception. We ask:
+
+\begin{quote}
+  \textit{Do Democratic voters or Republican voters experience more difficulty voting?}
+\end{quote}
+
+Our approach to measuring difficulty voting involves focusing on voters’ stated perception of how difficult they found the process of voting to be, ranked on scale. We do not narrow our approach to a particular definition of “difficulty,” leaving it to the respondent to conceptualize difficulty and then to decide whether the experience was difficult or not. “Difficulty” could be perceived by the respondent as primarily practical (distance to the polling place, complications of the registration process, etc.), and many studies have pointed to such practical difficulties as potential explanations for low voter turnout \footnote{See, for example, Highton, Benjamin. "Easy registration and voter turnout." The Journal of Politics 59, no. 2 (1997): 565-575, on registration requirements and turnout; and Brady, Henry E., and John E. McNulty. "Turning out to vote: The costs of finding and getting to the polling place." American Political Science Review 105, no. 1 (2011): 115-134, on ease of access to polling places.}. However, we are interested more broadly in allowing the respondent to define “difficulty.” We used a two-sample t-test to explore potential discrepancies between Democrats and Republicans in their perceptions of difficulty. 
+
+# Data and Methodology
+
+In our study, we analyze observational data sourced from the American National Election Studies (ANES), a research institution that administers surveys intended to gather information on political participation, voting, and public opinion. ANES is jointly run by several American universities and receives federal funding from the National Science Foundation. The particular dataset used in our study, 2022 Pilot Study \footnote{ American National Election Studies. “2022 Pilot Study.” American National Election Studies, 2022, https://electionstudies.org/data-center/2022-pilot-study/. Accessed 25 June 2024.}, originates from a comprehensive questionnaire that asks respondents whether they participated in recent elections (and most recently the 2022 midterm election) and probes their experience voting in these elections as well their attitudes towards a range of political issues. The dataset contains `r nrow(anes_data)` unique respondents, of which we filter down to voters identifying as a Republican or Democrat.
+
+**Voters:** In our study, we conceptualize a voter as someone who has successfully cast a vote in the 2022 midterm election on November 8th (by whatever legal avenue available to them, whether mail-in or in-person), and more specifically, we operationalize this concept by tracking respondents’ claims about whether they voted. We include in our category of voters those who claim they definitely voted or believe they “probably” voted in this election (indicating they have some memory of the experience). We acknowledge that inaccuracies from misremembering or dishonesty among survey respondents may not provide a fully accurate representation of actual voters. Nonetheless, we take respondents' claims at face value, and we are interested in examining voters’ experiences even if they cannot be completely sure that the experiences really occurred (but they believe they likely had the experience). 
+
+**Republican or Democrat:** We conceptualize a Republican or Democrat as someone who definitively self-identifies or thinks of themselves as closer towards either party. Strong party identification is not required and only an ideological affinity for either party qualifies them as a Republican or Democrat. We operationalize this concept by filtering on survey questions that ask respondents for their affiliation and ask those who don’t identify with a party whether they think of themselves “as closer” to one or another or “neither.” 
+
+
+```{r, include=FALSE}
+
+# Select relevant columns
+df_analysis <- anes_data[c('turnout22', 'turnout22ns', 'pipevote22a', 'votehard', 'pid1d', 'pid1r', 'pidlean')]
+
+# Create Voters indicated as either Yes or No for the 22 vote and create a descriptive variable "vote22"
+df_analysis$vote22 <- ifelse(df_analysis$turnout22 %in% c(1,2,3) | df_analysis$turnout22ns == 1 | df_analysis$pipevote22a == 2, 1,  0) %>% factor(levels = c(0, 1), labels = c("No", "Yes"))
+
+# Assign Parties indicated as either as "Neither", "Democrat" or "Republican a descriptive variable "party"
+df_analysis$party <- ifelse(df_analysis$pid1d == 1 | df_analysis$pid1r == 1 | df_analysis$pidlean == 2, 1,
+                       ifelse(df_analysis$pid1d == 2 | df_analysis$pid1r == 2 | df_analysis$pidlean == 1, 2, 0)) %>%                                  factor(levels = c(0, 1, 2), labels = c("Neither", "Democrat", "Republican"))
+
+# Raw table
+# print(table(df_analysis$vote22, df_analysis$party))
+```
+
+Table 1 segments the `r nrow(anes_data)` survey respondents based on our concepts defined and operationalized above. `r nrow(df_analysis %>% filter(vote22 == "Yes"))` respondents are voters, while `r nrow(df_analysis %>% filter(vote22 == "No"))` are non-voters. Of the `r nrow(df_analysis %>% filter(vote22 == "Yes"))` voters, `r nrow(df_analysis %>% filter(party == "Democrat" & vote22 == "Yes"))` are Democrats, while `r nrow(df_analysis %>% filter(party == "Republican" & vote22 == "Yes"))` are Republicans. This leaves us with a final dataset of `r nrow(df_analysis %>% filter(party %in% c("Democrat", "Republican") & vote22 == "Yes"))` observations of Republican or Democrat voters that we will perform statistical analysis on, which is `r round(nrow(df_analysis %>% filter(party %in% c("Democrat", "Republican") & vote22 == "Yes")) / nrow(anes_data) * 100, 1)`% of the unfiltered dataset size.
+
+```{r, echo=FALSE}
+
+# Summary Table 1
+
+summary_table <- table(df_analysis$vote22, df_analysis$party)
+
+kable(x = summary_table, 
+      col.names = c("Neither", "Democrat", "Republican"),
+      caption = "2022 midterm respondents breakdown, separated by voting indication and party affiliation")
+   
+```
+
+**Difficulty Voting:** We conceptualize "difficulty voting" as respondent’s perceived difficulty in voting during the 2022 midterm elections, regardless of the objective truth of this claim (if there can even be an accurately measurable objective truth in this case). If a person perceives voting as difficult, we count it as such. We then operationalize this concept by using one survey question which asks respondents who voted or probably voted in the 2022 midterm elections to rate the difficulty on a scale of 1-5, with 1 being "Not difficult at all" and 5 "Extremely difficult." We then convert responses into a binary variable: responses of “No difficulty at all” indicate no difficulty, while responses from 2 to 5 are grouped together to indicate difficulty experienced. This binary approach helps us avoid subjective interpretations of the scale and allows for a straightforward operationalisation of the research question, evaluating if the probability of Democrats or Republicans experiencing difficulty during the 2022 midterm voting is the same or not.
+
+Our analysis does not utilize one survey question in which respondents' select what may have been difficult for them in their experience voting or preparing to vote (voter registration, getting to the polling place, etc.)  We chose to set aside this question because we wanted to focus more generally on the perceived difficulty of voting, rather than specific named impediments. Our study is about perception of difficulty during an experience rather than a tally of particular obstacles. Furthermore, responses to this question include people who did not vote. Our research question asks about the experiences only of people who did vote. 
+
+Table 2 summarizes the operationalization of our three concepts, showing the difficulty voting breakdown between Democrats and Republicans that voted in the 2022 midterm elections.
+
+```{r, include=FALSE}
+# check the mapping - everyone who hasn't voted also has a -1 votehard - expect 417 non-voters - to validate change include to TRUE
+df_analysis[df_analysis$votehard < 0 & df_analysis$vote22 == "No", ]
+```
+
+```{r, include=FALSE}
+# check the mapping - everyone who voted also has a value between 1 and 5 votehard - expect 1168 - - to validate change include to TRUE
+df_analysis[df_analysis$votehard > 0 & df_analysis$votehard < 6 & df_analysis$vote22 == "Yes", ]
+```
+
+```{r, include=FALSE}
+
+# Convert votehard to ordinal variable and give a descriptive variable name "difficulty"
+df_analysis$difficulty <- factor(df_analysis$votehard,
+                   levels = c(-1, 1, 2, 3, 4, 5),
+                   labels = c("inapplicable", "Not difficult at all" ,"A little difficult", "Moderately difficult", "Very difficult", "Extremely difficult"))
+```
+
+```{r, include=FALSE}
+
+# Drop Non-Voters and Non Democrats/Republican
+df_analysis <- df_analysis %>% filter(party %in% c("Democrat", "Republican") & vote22 == "Yes")
+
+# Drop columns not needed anymore
+df_analysis <- df_analysis[c('party', 'difficulty')]
+```
+
+```{r, include=FALSE}
+
+# create as binary variable "was_difficult" to indicate whether difficulty was experienced or not by the voter
+df_analysis$was_difficult <- ifelse(df_analysis$difficulty == "Not difficult at all", 0,  1)
+```
+
+
+```{r, echo=FALSE}
+
+# Summary Table 2
+
+table_2 <- table(factor(df_analysis$was_difficult, levels = c(0, 1),labels = c("Not Difficult", "Difficult")), df_analysis$party)
+
+table_2_sub_dem <- prop.table(table_2[, c("Democrat")]) %>% `*`(100) %>% round(2)
+table_2_sub_rep <- prop.table(table_2[, c("Republican")]) %>% `*`(100) %>% round(2)
+
+table_2_complete <- cbind(
+  "Democrats" = table_2[, c("Democrat")],
+  "in %" = table_2_sub_dem,
+  "Republicans" = table_2[, c("Republican")],
+  "in %" = table_2_sub_rep
+)
+
+kable(x = table_2_complete, 
+      caption = "Absolute and relative share of voters experiencing difficulties within each party")
+```
+
+To test for a difference in the two groups, a two-sample t-test was applied. We make no a priori assumptions of one group facing more difficulties than the other and therefore apply a two-tailed test. Our null hypothesis is thus:
+ 
+\begin{quote}
+  \textbf{Null Hypothesis: }\textit{The probability that a Democrat voter perceives difficulty in voting equals the probability that a Republican voter faces difficulty in voting.}
+\end{quote}
+
+The two sample t-test relies on three assumptions that need to be met in order to make valid inferences. 
+
+- **Variables measured on a metric scale.** Binary variable indicating Difficult/Not Difficult has only one interval from 0 to 1, which is a valid metric scale. The variable either indicates having experienced difficulty or not.
+- **IID data.** Based on the ANES 2022 pilot data using the YouGov platform, there is a potential for dependencies due to clustering of responses from individuals who may be connected. However, YouGov's claim of a large user base likely minimizes such dependencies, suggesting that the data can be reasonably treated as IID. 
+- **No major deviations from normality, considering the sample size.** Our sample data is highly skewed towards no difficulty, with a comparatively low number of voters who have experienced difficulty, representing a positive skew (skewness = `r round(skewness(df_analysis$was_difficult),2)`). However, we have a considerably large sample size with `r nrow(df_analysis %>% filter(party == "Democrat"))` Democrat voters and `r nrow(df_analysis %>% filter(party == "Republican"))` Republican voters. The Central Limit Theorem should guarantee that the difference in probability between the two groups approximately follows a normal distribution, regardless of the underlying population distribution. 
+
+
+
+# Results and Discussion
+
+```{r}
+result <- t.test(df_analysis$was_difficult ~ df_analysis$party)
+```
+
+The analysis indicates that Democratic voters were significantly more likely to report difficulties in voting during the 2022 midterm elections compared to Republican voters. Specifically, `r round(result$estimate[1] * 100,2)`% of Democratic voters reported experiencing difficulty, whereas only `r round(result$estimate[2] * 100,2)`% of Republican voters did. This significant difference, with a p-value < 0.01, suggests that the disparity in voting difficulty is unlikely due to chance (95% confidence interval of the true population difference being between `r round(result$conf.int[1] * 100, 2)` and `r round(result$conf.int[2] * 100, 2)` percentage points).
+
+This study highlights crucial issues for policymakers and electoral administrators, emphasizing the need for an equitable voting process. It should be alarming to see that there are significant differences in the perceived difficulty of voting across voters supporting different parties. Addressing these disparities is essential for ensuring a fair democratic process where all citizens have an equal opportunity to vote. Our project also bears on the problem of low voter turnout. While our project does not study low voter turnout directly (since we do not include non-voters in our study), our finding is still relevant to studies of voter turnout. If voters systematically experience difficulties in casting a vote, there is a risk of them turning into non-voters in the future.
+
+However, the study has limitations. It is observational and cannot establish causality between party affiliation and voting difficulties. Furthermore, the focus on voters who successfully voted excludes non-voters, limiting the generalizability of the results to the broader population. Additionally, the findings may not apply to other types of elections, such as presidential elections, due to inherent differences between election types. Finally, it is important to note that voter turnout in our dataset was 73%, while national voter turnout for the 2022 Midterm election was 46%. This discrepancy suggests that our study sample may not be representative of the overall US population, or it may have included respondents who were not entirely truthful. The discrepancy may stem from the reliance on self-reported survey data rather than actual voting records.
+
+In a future project, we would be particularly interested in generalizing the findings also to non-voter groups, something that a design change in the questionnaire could facilitate, to ask the same questions across both groups. Non-voters may face similar difficulties as voters, but perhaps they are unable to overcome these challenges and thus cannot successfully cast a vote. Even better would be an experimental design to investigate potential improvements in the voting process that could make the process more equitable across different voter groups, keeping existing voters engaged and encouraging non-voters to participate. 
